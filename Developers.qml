@@ -236,9 +236,16 @@ Rectangle {
                 }
 
                 Component.onCompleted: {
-                    devText.text = developersBackend.getDevList()
+                    devText.text = "Loading..."
                     ticketText.text = developersBackend.getTicketsByDev()
                     developersBackend.devChart()
+                }
+
+                Connections {
+                    target: developersBackend
+                    function onPathsChanged() {
+                        devText.text = developersBackend.devListText
+                    }
                 }
             }
 
@@ -295,7 +302,7 @@ Rectangle {
                         }
 
                         onClicked: {
-                            devText.text = developersBackend.getDevList()
+                            devText.text = "Loading..."
                             ticketText.text = developersBackend.getTicketsByDev()
                             developersBackend.devChart()
                         }

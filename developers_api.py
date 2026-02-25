@@ -13,6 +13,7 @@ class DevelopersAPI(QObject):
         self._silver_path = ""
         self._bronze_path = ""
         self._medal_path = ""
+        self._dev_list_text = "Loading..."
         # Initialize paths on startup
         self.devImagePath()
 
@@ -28,12 +29,29 @@ class DevelopersAPI(QObject):
     def devChart(self):
         print("Generating charts...")
         try:
-            # 1. Run the generation logic from devCharts.py
-            devCharts.main() 
-            
-            # 2. Update paths with new timestamps and notify QML
+            # 1. Fetch GitHub data once — used for both dev list and charts
+            data = devCharts.fetch_contributors_from_github()
+
+            if data:
+                # Format dev list from GitHub API data (matches contributor graphs)
+                lines = [f"{commits:>6}  {login}" for login, commits in data]
+                self._dev_list_text = "\n".join(lines)
+
+                # Generate charts from same data
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                plots_dir = os.path.join(base_dir, "Developers", "plotDevelopers")
+                os.makedirs(plots_dir, exist_ok=True)
+                tiered = devCharts.assign_fixed_tiers(data)
+                for tier in ["Gold", "Silver", "Bronze"]:
+                    chart_path = os.path.join(plots_dir, f"{tier.lower()}_contributors.png")
+                    devCharts.plot_single_tier(tiered, tier, chart_path)
+            else:
+                # Fallback: use git shortlog if GitHub API unavailable
+                self._dev_list_text = devCharts.devList()
+
+            # 2. Update image paths and notify QML — updates both charts and dev list
             self.devImagePath()
-            self.pathsChanged.emit() 
+            self.pathsChanged.emit()
             print("Charts generated and QML notified.")
         except Exception as e:
             print(f"Error generating charts: {e}")
@@ -56,6 +74,10 @@ class DevelopersAPI(QObject):
         self._silver_path = format_path("silver_contributors.png")
         self._bronze_path = format_path("bronze_contributors.png")
         self._medal_path = format_path("Medal.png")
+
+    @Property(str, notify=pathsChanged)
+    def devListText(self):
+        return self._dev_list_text
 
     # Properties with 'notify' decorators so QML updates automatically
     @Property(str, notify=pathsChanged)
